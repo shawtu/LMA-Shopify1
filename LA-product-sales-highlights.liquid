@@ -1,4 +1,4 @@
- <section class="space-calculator">
+<section class="space-calculator">
   <!-- Field Checking Section -->
   <h2>{{ section.settings.header_label }}</h2>
 
@@ -26,7 +26,7 @@
   {% else %}
     <p><strong>Error:</strong> The metafield `product_sales_highlights` is not set or does not exist for this product.</p>
   {% endif %}
-
+ 
   <!-- Product Price Section -->
 {% if metaobject_ref %}
   <div class="product-price-info">
@@ -58,77 +58,81 @@
     <p>{{ section.settings.paragraph_label | default: "Special pricing available for orders over 2,000 sqft. Get a custom quote for large products." }}</p>
 
     {% if metaobject_ref %}
-<div class="calculator-form">
-  <label for="space-size">{{ section.settings.space_label }}</label>
-  <div style="display: flex; align-items: center; gap: 8px;">
-    <input id="space-size" type="number" step="1" placeholder="Enter size in sqft" min="1" />
-    <span>square feet</span>
-  </div>
-
-  <div>
-    <input id="waste-checkbox" type="checkbox" />
-    <label for="waste-checkbox">{{ section.settings.checkbox_label }}</label>
-  </div>
-
-  <button id="calc-button" type="button">{{ section.settings.calc_button_label }}</button>
-</div>
-
-      <!-- Calculator result display -->
-      <div class="calculator-result" style="display: none;">
-        <p>{{ section.settings.result_label }}</p>
-        <p>
-          <strong id="units-suggested"></strong> {{ section.settings.unit_label }}
-          | Based on <strong id="total-sqft"></strong> {{ metaobject_ref.value.unit_of_measurement | default: "sqft" }}.
-        </p>
+    <div class="calculator-form">
+      <label for="space-size">{{ section.settings.space_label }}</label>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <input id="space-size" type="number" step="1" placeholder="Enter size in sqft" min="0" />
+        <span>square feet</span>
       </div>
 
-<!-- Hidden Data for JS -->
-<div id="calculator-data"
-  data-waste="{{ section.settings.waste_percentage | default: 10 }}"
-  data-measured-area="{{ metaobject_ref.value.measured_area | default: 1 }}"
-  data-unit-label="{{ metaobject_ref.value.unit_label | default: 'unit' }}"
-  data-unit-label-plural="{{ metaobject_ref.value.unit_label_plural | default: 'units' }}">
-</div>
+      <div>
+        <input id="waste-checkbox" type="checkbox" />
+        <label for="waste-checkbox">{{ section.settings.checkbox_label }}</label>
+      </div>
+    </div>
 
-<!-- Calculator Script -->
-<script>
-  document.querySelector("#calc-button").addEventListener("click", function () {
-    // Get the input values
-    const spaceSize = parseFloat(document.querySelector("#space-size").value);
+    <!-- Calculator result display -->
+    <div class="calculator-result" style="display: none;">
+      <p>{{ section.settings.result_label }}</p>
+      <p>
+        <strong id="units-suggested"></strong> {{ section.settings.unit_label }}
+        | Based on <strong id="total-sqft"></strong> {{ metaobject_ref.value.unit_of_measurement | default: "sqft" }}.
+      </p>
+    </div>
 
-    // Get the waste checkbox
-    const includeWaste = document.querySelector("#waste-checkbox").checked;
+    <!-- Hidden Data for JS -->
+    <div id="calculator-data"
+      data-waste="{{ section.settings.waste_percentage | default: 10 }}"
+      data-measured-area="{{ metaobject_ref.value.measured_area | default: 1 }}"
+      data-unit-label="{{ metaobject_ref.value.unit_label | default: 'unit' }}"
+      data-unit-label-plural="{{ metaobject_ref.value.unit_label_plural | default: 'units' }}">
+    </div>
 
-    // Get dynamic values from the data attributes
-    const calculatorData = document.querySelector("#calculator-data");
-    const wastePercentage = parseFloat(calculatorData.dataset.waste);
-    const measuredArea = parseFloat(calculatorData.dataset.measuredArea);
-    const unitLabel = calculatorData.dataset.unitLabel;
-    const unitLabelPlural = calculatorData.dataset.unitLabelPlural;
+    <script>
+      // Function to calculate and update results dynamically
+      function calculateAndUpdate() {
+        const spaceSize = parseFloat(document.querySelector("#space-size").value) || 0;
+        const includeWaste = document.querySelector("#waste-checkbox").checked;
 
-    // Calculate waste multiplier
-    const wasteMultiplier = includeWaste ? 1 + (wastePercentage / 100) : 1;
+        const calculatorData = document.querySelector("#calculator-data");
+        const wastePercentage = parseFloat(calculatorData.dataset.waste);
+        const measuredArea = parseFloat(calculatorData.dataset.measuredArea);
+        const unitLabel = calculatorData.dataset.unitLabel;
+        const unitLabelPlural = calculatorData.dataset.unitLabelPlural;
 
-    if (spaceSize && spaceSize > 0) {
-      // Calculate adjusted total square footage with fixed precision
-      const totalSqft = parseFloat((spaceSize * wasteMultiplier).toFixed(10));
+        const wasteMultiplier = includeWaste ? 1 + (wastePercentage / 100) : 1;
+        const totalSqft = parseFloat((spaceSize * wasteMultiplier).toFixed(10));
+        const units = Math.ceil(totalSqft / measuredArea);
 
-      // Calculate number of units needed, rounding up
-      const units = Math.ceil(totalSqft / measuredArea);
+        // Determine singular or plural unit
+        const unitDisplay = units === 1 ? unitLabel : unitLabelPlural;
 
-      // Determine the correct label (singular or plural)
-      const unitDisplay = units === 1 ? unitLabel : unitLabelPlural;
+        // Update quantity updater input
+        const quantityInput = document.querySelector("#quantity-input");
+        quantityInput.value = units;
 
-      // Display the results
-      document.querySelector(".calculator-result").style.display = "block";
-      document.querySelector("#units-suggested").innerText = `${units} ${unitDisplay}`;
-      document.querySelector("#total-sqft").innerText = Math.ceil(totalSqft);
-    } else {
-      // Hide results if input is invalid
-      document.querySelector(".calculator-result").style.display = "none";
-    }
-  });
-</script>
+        // Trigger the quantity updater logic
+        const inputEvent = new Event("input", { bubbles: true });
+        quantityInput.dispatchEvent(inputEvent);
+
+        // Update result display
+        const resultSection = document.querySelector(".calculator-result");
+        if (spaceSize > 0) {
+          resultSection.style.display = "block";
+          document.querySelector("#units-suggested").innerText = `${units} ${unitDisplay}`;
+          document.querySelector("#total-sqft").innerText = Math.ceil(totalSqft);
+        } else {
+          resultSection.style.display = "none";
+        }
+      }
+
+      // Event listeners for dynamic updates
+      document.querySelector("#space-size").addEventListener("input", calculateAndUpdate);
+      document.querySelector("#waste-checkbox").addEventListener("change", calculateAndUpdate);
+
+      // Initialize result with default state
+      calculateAndUpdate();
+    </script>
 
     {% else %}
       <p><strong>Error:</strong> Cannot calculate as the metafield `measured_area` is missing.</p>
@@ -178,16 +182,10 @@
     },
     {
       "type": "text",
-      "id": "calc_button_label",
-      "label": "Calculate Button Label",
-      "default": "Calculate"
-    },
-    {
-      "type": "text",
       "id": "result_label",
       "label": "Result Label",
       "default": "We suggest ordering:"
-    },
+    }
   ],
   "presets": [
     {
