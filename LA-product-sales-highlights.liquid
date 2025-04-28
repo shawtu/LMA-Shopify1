@@ -1,0 +1,199 @@
+ <section class="space-calculator">
+  <!-- Field Checking Section -->
+  <h2>{{ section.settings.header_label }}</h2>
+
+  {% assign metaobject_ref = product.metafields.custom.product_sales_highlights %}
+  {% if metaobject_ref %}
+    <div class="metaobject-debug">
+      <h3>Metaobject Debug</h3>
+      <p><strong>Metaobject Reference:</strong> <pre>{{ metaobject_ref }}</pre></p>
+      <pre>Metaobject Reference Value JSON: {{ metaobject_ref.value | json }}</pre>
+    </div>
+
+    <!-- Display Fields -->
+    <ul>
+      <li><strong>Includes:</strong> {% if metaobject_ref.value.includes %}{{ metaobject_ref.value.includes | join: ", " }}{% else %}DNF{% endif %}</li>
+      <li><strong>Name of Product:</strong> {% if metaobject_ref.value.name_of_product %}{{ metaobject_ref.value.name_of_product }}{% else %}DNF{% endif %}</li>
+      <li><strong>Tariff Price Info:</strong> {% if metaobject_ref.value.tariff_price_info %}{{ metaobject_ref.value.tariff_price_info }}{% else %}DNF{% endif %}</li>
+      <li><strong>Measured Area:</strong> {% if metaobject_ref.value.measured_area %}{{ metaobject_ref.value.measured_area }}{% else %}DNF{% endif %}</li>
+      <li><strong>Price per Measurement:</strong> {% if metaobject_ref.value.price_per_measurement %}{{ metaobject_ref.value.price_per_measurement }}{% else %}DNF{% endif %}</li>
+      <li><strong>Price per Measurement Note:</strong> {% if metaobject_ref.value.price_per_measurement_note %}{{ metaobject_ref.value.price_per_measurement_note }}{% else %}DNF{% endif %}</li>
+      <li><strong>Special Banner:</strong> {% if metaobject_ref.value.special_banner %}{{ metaobject_ref.value.special_banner }}{% else %}DNF{% endif %}</li>
+      <li><strong>Unit Label:</strong> {% if metaobject_ref.value.unit_label %}{{ metaobject_ref.value.unit_label }}{% else %}DNF{% endif %}</li>
+      <li><strong>Unit Label Plural:</strong> {% if metaobject_ref.value.unit_label_plural %}{{ metaobject_ref.value.unit_label_plural }}{% else %}DNF{% endif %}</li>
+      <li><strong>Unit of Measurement:</strong> {% if metaobject_ref.value.unit_of_measurement %}{{ metaobject_ref.value.unit_of_measurement }}{% else %}DNF{% endif %}</li>
+    </ul>
+  {% else %}
+    <p><strong>Error:</strong> The metafield `product_sales_highlights` is not set or does not exist for this product.</p>
+  {% endif %}
+
+  <!-- Product Price Section -->
+{% if metaobject_ref %}
+  <div class="product-price-info">
+    <!-- Product Name -->
+    <h3>{{ product.title }}</h3>
+
+    <!-- Price Per Measurement Note -->
+    {% if metaobject_ref.value.price_per_measurement_note %}
+      <p>{{ metaobject_ref.value.price_per_measurement_note }}</p>
+    {% endif %}
+
+    <!-- Price Information -->
+    <p>
+      {% if product.price and metaobject_ref.value.measured_area %}
+        {{ product.price | divided_by: metaobject_ref.value.measured_area | money }} 
+        per {{ metaobject_ref.value.unit_of_measurement | default: "unit" }} |
+      {% endif %}
+      {% if product.price and metaobject_ref.value.unit_label %}
+        {{ product.price | money }} per {{ metaobject_ref.value.unit_label }}
+      {% endif %}
+    </p>
+  </div>
+{% endif %}
+
+  <!-- Calculator Section -->
+  <div class="space-calculator-form">
+    <h3>{{ section.settings.calculator_header }}</h3>
+
+    <p>{{ section.settings.paragraph_label | default: "Special pricing available for orders over 2,000 sqft. Get a custom quote for large products." }}</p>
+
+    {% if metaobject_ref %}
+<div class="calculator-form">
+  <label for="space-size">{{ section.settings.space_label }}</label>
+  <div style="display: flex; align-items: center; gap: 8px;">
+    <input id="space-size" type="number" step="1" placeholder="Enter size in sqft" min="1" />
+    <span>square feet</span>
+  </div>
+
+  <div>
+    <input id="waste-checkbox" type="checkbox" />
+    <label for="waste-checkbox">{{ section.settings.checkbox_label }}</label>
+  </div>
+
+  <button id="calc-button" type="button">{{ section.settings.calc_button_label }}</button>
+</div>
+
+      <!-- Calculator result display -->
+      <div class="calculator-result" style="display: none;">
+        <p>{{ section.settings.result_label }}</p>
+        <p>
+          <strong id="units-suggested"></strong> {{ section.settings.unit_label }}
+          | Based on <strong id="total-sqft"></strong> {{ metaobject_ref.value.unit_of_measurement | default: "sqft" }}.
+        </p>
+      </div>
+
+<!-- Hidden Data for JS -->
+<div id="calculator-data"
+  data-waste="{{ section.settings.waste_percentage | default: 10 }}"
+  data-measured-area="{{ metaobject_ref.value.measured_area | default: 1 }}"
+  data-unit-label="{{ metaobject_ref.value.unit_label | default: 'unit' }}"
+  data-unit-label-plural="{{ metaobject_ref.value.unit_label_plural | default: 'units' }}">
+</div>
+
+<!-- Calculator Script -->
+<script>
+  document.querySelector("#calc-button").addEventListener("click", function () {
+    // Get the input values
+    const spaceSize = parseFloat(document.querySelector("#space-size").value);
+
+    // Get the waste checkbox
+    const includeWaste = document.querySelector("#waste-checkbox").checked;
+
+    // Get dynamic values from the data attributes
+    const calculatorData = document.querySelector("#calculator-data");
+    const wastePercentage = parseFloat(calculatorData.dataset.waste);
+    const measuredArea = parseFloat(calculatorData.dataset.measuredArea);
+    const unitLabel = calculatorData.dataset.unitLabel;
+    const unitLabelPlural = calculatorData.dataset.unitLabelPlural;
+
+    // Calculate waste multiplier
+    const wasteMultiplier = includeWaste ? 1 + (wastePercentage / 100) : 1;
+
+    if (spaceSize && spaceSize > 0) {
+      // Calculate adjusted total square footage with fixed precision
+      const totalSqft = parseFloat((spaceSize * wasteMultiplier).toFixed(10));
+
+      // Calculate number of units needed, rounding up
+      const units = Math.ceil(totalSqft / measuredArea);
+
+      // Determine the correct label (singular or plural)
+      const unitDisplay = units === 1 ? unitLabel : unitLabelPlural;
+
+      // Display the results
+      document.querySelector(".calculator-result").style.display = "block";
+      document.querySelector("#units-suggested").innerText = `${units} ${unitDisplay}`;
+      document.querySelector("#total-sqft").innerText = Math.ceil(totalSqft);
+    } else {
+      // Hide results if input is invalid
+      document.querySelector(".calculator-result").style.display = "none";
+    }
+  });
+</script>
+
+    {% else %}
+      <p><strong>Error:</strong> Cannot calculate as the metafield `measured_area` is missing.</p>
+    {% endif %}
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "LA Space Calculator",
+  "settings": [
+    {
+      "type": "text",
+      "id": "header_label",
+      "label": "Header Label",
+      "default": "Product Fields Debug"
+    },
+    {
+      "type": "text",
+      "id": "calculator_header",
+      "label": "Calculator Header",
+      "default": "Plan the right amount for your space"
+    },
+    {
+      "type": "textarea",
+      "id": "paragraph_label",
+      "label": "Paragraph Label",
+      "default": "Special pricing available for orders over 2,000 sqft. Get a custom quote for large products."
+    },
+    {
+      "type": "text",
+      "id": "space_label",
+      "label": "Space Input Label",
+      "default": "Enter the size of your space:"
+    },
+    {
+      "type": "text",
+      "id": "checkbox_label",
+      "label": "Checkbox Label",
+      "default": "Add 10% for cuts and waste"
+    },
+    {
+      "type": "number",
+      "id": "waste_percentage",
+      "label": "Percentage for Waste",
+      "default": 10
+    },
+    {
+      "type": "text",
+      "id": "calc_button_label",
+      "label": "Calculate Button Label",
+      "default": "Calculate"
+    },
+    {
+      "type": "text",
+      "id": "result_label",
+      "label": "Result Label",
+      "default": "We suggest ordering:"
+    },
+  ],
+  "presets": [
+    {
+      "name": "LA Space Calculator",
+      "category": "Product"
+    }
+  ]
+}
+{% endschema %}
